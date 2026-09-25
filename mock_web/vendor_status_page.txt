@@ -1,0 +1,10 @@
+[MOCK EXTERNAL PAGE: https://status.examplevendor.test/incidents]
+
+Example Vendor Status Page
+Current status: All systems operational.
+
+Past incident (resolved): On 2026-06-02, a brief API latency spike affected
+approximately 2% of requests for 14 minutes. Root cause was a misconfigured
+load balancer rule. Fix deployed and verified.
+
+Subscribe to updates via the link in the footer.

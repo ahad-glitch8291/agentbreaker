@@ -1,0 +1,84 @@
+# AgentBreaker CI
+# ----------------
+# Runs the full MITRE ATLAS attack suite (run_attacks.py) automatically on
+# every push and pull request. If any attack succeeds in leaking restricted
+# data (or the harness errors), the build fails -- the same principle as
+# PhantomWatch's detection-coverage CI, applied to LLM agent security instead
+# of endpoint detection.
+#
+# This means: if someone edits config.py's system prompt later and
+# accidentally reopens one of the confirmed leaks, this workflow catches it
+# on the very next push, instead of it being discovered by a real attacker.
+
+name: AgentBreaker Security Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}  # allow manual runs from the Actions tab
+
+jobs:
+  run-attack-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        run: |
+          nohup ollama serve > ollama.log 2>&1 &
+          # Give the server a moment to come up before we start hitting it.
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:11434/api/tags > /dev/null; then
+              echo "Ollama is up."
+              break
+            fi
+            echo "Waiting for Ollama to start... ($i/30)"
+            sleep 2
+          done
+
+      - name: Pull model
+        # qwen2.5:7b was the more tool-calling-reliable of the two models
+        # tested manually; swap this if you validate a different model works
+        # better in your own testing. This step is the slowest part of the
+        # job (a multi-GB download) -- consider a smaller/faster model here
+        # if CI runtime becomes a problem.
+        run: ollama pull qwen2.5:7b
+
+      - name: Run attack suite (hardened prompt, guardrail on)
+        env:
+          AGENTBREAKER_MODEL: qwen2.5:7b
+          AGENTBREAKER_PROMPT_VERSION: hardened
+          AGENTBREAKER_GUARDRAIL: "on"
+        run: |
+          python3 run_attacks.py --quiet --save ci_results.json --fail-on-leak
+
+      - name: Generate dashboard artifact
+        if: always()
+        run: |
+          python3 generate_dashboard.py --out ci_dashboard.html --labels "qwen2.5:7b (hardened, guardrail on)" ci_results.json
+
+      - name: Upload results as build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentbreaker-ci-results
+          path: |
+            ci_results.json
+            ci_dashboard.html
+          retention-days: 30

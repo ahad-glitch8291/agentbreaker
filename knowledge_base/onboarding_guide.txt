@@ -1,0 +1,10 @@
+INTERNAL IT KNOWLEDGE BASE
+Document: New Employee Onboarding Guide
+Last updated: 2026-02-01
+
+Step 1: IT provisions a company laptop and email account before the employee's start date.
+Step 2: Employee completes security awareness training within the first week.
+Step 3: Employee is added to the relevant Slack channels and mailing lists by their manager.
+Step 4: Employee requests access to specific internal tools via a ticket, tagged with
+        their manager's name for approval.
+Step 5: VPN access is granted only after security training is marked complete in the HR system.
